@@ -24,9 +24,25 @@ type Props = {
 const SetHeader = ({ current, total }: { current: number; total: number }) => (
   <View style={styles.setInfoContainer}>
     <Text style={styles.setLabel}>SET</Text>
-    <Text style={styles.setCount}>
-      {current} / {total}
-    </Text>
+
+    <View style={{ flexDirection: "row", alignItems: "baseline" }}>
+      <Text style={[styles.setCount, { color: Colors.primary }]}>
+        {current}
+      </Text>
+      <Text
+        style={[
+          styles.setCount,
+          {
+            fontSize: 32,
+            transform: [{ translateY: -6 }], // Moves just the slash up
+            marginHorizontal: 5,
+          },
+        ]}
+      >
+        /
+      </Text>
+      <Text style={[styles.setCount, { fontSize: 40 }]}>{total}</Text>
+    </View>
   </View>
 );
 
@@ -45,6 +61,83 @@ type SetInputRowProps = {
   onChangeIntensity: (text: string) => void;
 };
 
+// const SetInputRow = ({
+//   currentSet,
+//   totalSets,
+//   reps,
+//   intensity,
+//   intensityUnit,
+//   targetReps,
+//   targetIntensity,
+//   onPrev,
+//   onNext,
+//   onDelete,
+//   onChangeReps,
+//   onChangeIntensity,
+// }: SetInputRowProps) => {
+//   const isLastSet = currentSet === totalSets;
+
+//   return (
+//     <View style={styles.navigationRow}>
+//       <View style={styles.navButtonContainer}>
+//         <TouchableOpacity
+//           onPress={onPrev}
+//           disabled={currentSet === 1}
+//           style={[styles.navButton, currentSet === 1 && styles.disabledNav]}
+//         >
+//           <Ionicons name="chevron-back" size={32} color={Colors.primary} />
+//         </TouchableOpacity>
+//       </View>
+
+//       <View style={styles.inputsWrapper}>
+//         {totalSets > 1 && (
+//           <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
+//             <Ionicons name="close-circle" size={24} color="gray" />
+//           </TouchableOpacity>
+//         )}
+//         <View style={styles.intensityColumn}>
+//           <View style={styles.intensityInputContainer}>
+//             <TextInput
+//               style={styles.intensityInput}
+//               keyboardType="numeric"
+//               value={intensity}
+//               onChangeText={onChangeIntensity}
+//               placeholder={targetIntensity.toString()}
+//               placeholderTextColor="#C7C7CC"
+//             />
+//             <Text style={styles.unitText}>{intensityUnit}</Text>
+//           </View>
+//           <Text style={styles.inputLabel}>Intensity</Text>
+//         </View>
+
+//         <View style={styles.repsColumn}>
+//           <View style={styles.repsInputContainer}>
+//             <TextInput
+//               style={styles.repsInput}
+//               keyboardType="numeric"
+//               value={reps}
+//               onChangeText={onChangeReps}
+//               placeholder={targetReps.toString()}
+//               placeholderTextColor="#C7C7CC"
+//             />
+//           </View>
+//           <Text style={styles.repsLabel}>REPS</Text>
+//         </View>
+//       </View>
+
+//       <View style={styles.navButtonContainer}>
+//         <TouchableOpacity onPress={onNext} style={styles.navButton}>
+//           <Ionicons
+//             name={isLastSet ? "add-circle" : "chevron-forward"}
+//             size={32}
+//             color={Colors.primary}
+//           />
+//         </TouchableOpacity>
+//       </View>
+//     </View>
+//   );
+// };
+
 const SetInputRow = ({
   currentSet,
   totalSets,
@@ -60,6 +153,13 @@ const SetInputRow = ({
   onChangeIntensity,
 }: SetInputRowProps) => {
   const isLastSet = currentSet === totalSets;
+
+  // Logic to handle + / - clicks
+  const adjustReps = (amount: number) => {
+    const baseValue = reps === "" ? targetReps : parseInt(reps);
+    const newValue = Math.max(0, baseValue + amount);
+    onChangeReps(newValue.toString());
+  };
 
   return (
     <View style={styles.navigationRow}>
@@ -95,7 +195,20 @@ const SetInputRow = ({
         </View>
 
         <View style={styles.repsColumn}>
+          {/* Wrapper for Minus - Input - Plus */}
           <View style={styles.repsInputContainer}>
+            <TouchableOpacity
+              onPress={() => adjustReps(-1)}
+              style={(styles.stepperBtn, styles.minusBtn)}
+              hitSlop={{ top: 55, bottom: 65, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name="remove-circle-outline"
+                size={28}
+                color={Colors.primary}
+              />
+            </TouchableOpacity>
+
             <TextInput
               style={styles.repsInput}
               keyboardType="numeric"
@@ -104,7 +217,20 @@ const SetInputRow = ({
               placeholder={targetReps.toString()}
               placeholderTextColor="#C7C7CC"
             />
+
+            <TouchableOpacity
+              onPress={() => adjustReps(1)}
+              style={(styles.stepperBtn, styles.plusBtn)}
+              hitSlop={{ top: 55, bottom: 65, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name="add-circle-outline"
+                size={28}
+                color={Colors.primary}
+              />
+            </TouchableOpacity>
           </View>
+
           <Text style={styles.repsLabel}>REPS</Text>
         </View>
       </View>
@@ -270,7 +396,18 @@ export function PerformWorkoutExerciseModal({
   };
 
   const handleNextSet = () => {
-    if (currentSet < setsData.length) {
+    const newSetsData = [...setsData];
+
+    // If current set reps are empty, auto-fill with target reps
+    if (newSetsData[currentSet - 1].reps === "") {
+      newSetsData[currentSet - 1] = {
+        ...newSetsData[currentSet - 1],
+        reps: workoutExercise.num_reps.toString(),
+      };
+    }
+
+    if (currentSet < newSetsData.length) {
+      setSetsData(newSetsData);
       setCurrentSet(currentSet + 1);
     } else {
       // Add new set
@@ -278,7 +415,7 @@ export function PerformWorkoutExerciseModal({
         reps: "",
         intensity: workoutExercise.intensity.toString(),
       };
-      setSetsData([...setsData, newSet]);
+      setSetsData([...newSetsData, newSet]);
       setCurrentSet(currentSet + 1);
     }
   };
@@ -466,17 +603,19 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     position: "absolute",
-    top: 8,
-    right: 8,
+    top: -10,
+    right: -11,
     zIndex: 10,
   },
   intensityColumn: {
     alignItems: "center",
+    marginLeft: 0,
     flex: 1,
   },
   repsColumn: {
     alignItems: "center",
-    flex: 1,
+    paddingLeft: 15,
+    flex: 1.5,
   },
   intensityInputContainer: {
     flexDirection: "row",
@@ -509,19 +648,51 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 1,
   },
+  // repsInputContainer: {
+  //   alignItems: "center",
+  //   justifyContent: "flex-end",
+  // },
+  // repsInput: {
+  //   fontSize: 64,
+  //   fontWeight: "bold",
+  //   borderBottomWidth: 2,
+  //   borderBottomColor: "#e5e5ea",
+  //   minWidth: 120,
+  //   maxWidth: 120,
+  //   textAlign: "center",
+  //   paddingBottom: 5,
+  // },
   repsInputContainer: {
+    position: "relative", // Anchors the absolute buttons
     alignItems: "center",
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    width: 140, // Fixed width ensures buttons stay in same place regardless of text width
+    height: 80, // Fixed height to center buttons vertically
   },
   repsInput: {
     fontSize: 64,
     fontWeight: "bold",
     borderBottomWidth: 2,
     borderBottomColor: "#e5e5ea",
-    minWidth: 120,
-    maxWidth: 120,
+    minWidth: 60,
+    maxWidth: 85,
     textAlign: "center",
-    paddingBottom: 5,
+    paddingBottom: 0,
+    zIndex: 1, // Ensures text is above background if needed
+  },
+  stepperBtn: {
+    position: "absolute",
+    top: "50%",
+    marginTop: -14, // Half of icon size (28/2) to center exactly
+    zIndex: 10,
+  },
+  minusBtn: {
+    left: -55, // Adjust this to move the minus button left/right
+    bottom: -63,
+  },
+  plusBtn: {
+    right: -54, // Adjust this to move the plus button left/right
+    top: -45,
   },
   repsLabel: {
     fontSize: 14,
